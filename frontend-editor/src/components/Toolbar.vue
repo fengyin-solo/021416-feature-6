@@ -14,7 +14,10 @@
           v-for="act in group"
           :key="act.id"
           class="toolbar__btn"
+          :class="{ 'toolbar__btn--active': store.activeFormats.includes(act.id) }"
           :title="act.title"
+          :aria-pressed="store.activeFormats.includes(act.id)"
+          @mousedown.prevent
           @click="emit('action', act.id)"
           v-html="act.icon"
         />
@@ -134,6 +137,12 @@ const actionGroups = [
     }
     &:active {
       transform: scale(0.93);
+    }
+
+    &--active,
+    &--active:hover {
+      background: $accent-mid;
+      color: $accent;
     }
   }
 

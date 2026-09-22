@@ -4,7 +4,7 @@ import {
   WidgetType
 } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
-import { parseMarkdownRegions } from './markdown-parser'
+import { parseMarkdownRegions } from './markdown-parser.js'
 
 /**
  * HR Widget — renders a horizontal rule

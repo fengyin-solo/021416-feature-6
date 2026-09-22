@@ -6,6 +6,7 @@ import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
 import { editorBaseTheme } from './theme'
 import { markdownDecorationPlugin } from './decoration-plugin'
+import { formatKeymap } from './format-commands'
 
 const defaultContent = `# Welcome to MD Live Editor
 
@@ -53,16 +54,13 @@ Happy writing! ✨
 `
 
 /**
- * Create and mount a CodeMirror 6 editor instance.
- * @param {HTMLElement} parent - The DOM element to mount the editor into
- * @param {Object} [options]
- * @param {string} [options.doc] - Initial document content
- * @param {function} [options.onUpdate] - Callback for editor updates
- * @returns {EditorView}
+ * Build the shared extension set. Factored out so that switching documents
+ * can create a fresh state with the exact same configuration (and a clean
+ * undo history that cannot leak edits from the previous document).
+ * @param {function} [onUpdate]
+ * @returns {Array}
  */
-export function createEditor(parent, options = {}) {
-  const { doc, onUpdate } = options
-
+export function createExtensions(onUpdate) {
   const extensions = [
     // Core
     history(),
@@ -72,8 +70,9 @@ export function createEditor(parent, options = {}) {
     bracketMatching(),
     EditorView.lineWrapping,
 
-    // Keymaps
+    // Keymaps — format bindings come first so they win over defaults
     keymap.of([
+      ...formatKeymap,
       ...defaultKeymap,
       ...historyKeymap,
       indentWithTab
@@ -96,15 +95,36 @@ export function createEditor(parent, options = {}) {
     EditorView.contentAttributes.of({ spellcheck: 'true' })
   ]
 
-  // Add update listener if provided
   if (onUpdate) {
     extensions.push(EditorView.updateListener.of(onUpdate))
   }
 
-  const state = EditorState.create({
-    doc: doc || defaultContent,
-    extensions
-  })
+  return extensions
+}
 
+/**
+ * Create a fresh editor state.
+ * @param {Object} args
+ * @param {string} args.doc
+ * @param {function} [args.onUpdate]
+ * @returns {EditorState}
+ */
+export function createEditorState({ doc, onUpdate } = {}) {
+  return EditorState.create({
+    doc: doc ?? defaultContent,
+    extensions: createExtensions(onUpdate)
+  })
+}
+
+/**
+ * Create and mount a CodeMirror 6 editor instance.
+ * @param {HTMLElement} parent - The DOM element to mount the editor into
+ * @param {Object} [options]
+ * @param {string} [options.doc] - Initial document content
+ * @param {function} [options.onUpdate] - Callback for editor updates
+ * @returns {EditorView}
+ */
+export function createEditor(parent, options = {}) {
+  const state = createEditorState(options)
   return new EditorView({ state, parent })
 }

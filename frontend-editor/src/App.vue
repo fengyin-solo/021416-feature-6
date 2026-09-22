@@ -16,9 +16,12 @@ import { ref, reactive } from 'vue'
 import Toolbar from '@/components/Toolbar.vue'
 import EditorPane from '@/components/EditorPane.vue'
 import StatusBar from '@/components/StatusBar.vue'
+import { runFormatCommand } from '@/editor/format-commands'
+import { useEditorStore } from '@/stores/editor'
 
 const editorPane = ref(null)
 let editorView = null
+const store = useEditorStore()
 
 const toast = reactive({ visible: false, message: '', type: 'info' })
 let toastTimer = null
@@ -31,45 +34,24 @@ function showToast(msg, type = 'info') {
 
 function onEditorReady(view) { editorView = view }
 
-function insertText(before, after = '') {
-  if (!editorView) return
-  const { from, to } = editorView.state.selection.main
-  const sel = editorView.state.sliceDoc(from, to)
-  const text = `${before}${sel || 'text'}${after}`
-  editorView.dispatch({
-    changes: { from, to, insert: text },
-    selection: { anchor: from + before.length, head: from + before.length + (sel || 'text').length }
-  })
-  editorView.focus()
-}
-
-function insertLine(prefix) {
-  if (!editorView) return
-  const line = editorView.state.doc.lineAt(editorView.state.selection.main.head)
-  editorView.dispatch({ changes: { from: line.from, to: line.from, insert: prefix } })
-  editorView.focus()
-}
+// Command ids understood by the format engine. Anything else is unknown and
+// must leave the document untouched.
+const KNOWN_COMMANDS = new Set([
+  'bold', 'italic', 'strikethrough', 'code', 'link', 'image',
+  'blockquote', 'bullet-list', 'ordered-list', 'hr',
+])
 
 function handleToolbarAction(action) {
-  const map = {
-    bold: () => insertText('**', '**'),
-    italic: () => insertText('*', '*'),
-    strikethrough: () => insertText('~~', '~~'),
-    code: () => insertText('`', '`'),
-    link: () => insertText('[', '](url)'),
-    image: () => insertText('![alt](', ')'),
-    blockquote: () => insertLine('> '),
-    'bullet-list': () => insertLine('- '),
-    'ordered-list': () => insertLine('1. '),
-    hr: () => {
-      const pos = editorView.state.selection.main.head
-      const line = editorView.state.doc.lineAt(pos)
-      editorView.dispatch({ changes: { from: line.to, to: line.to, insert: '\n\n---\n\n' } })
-      editorView.focus()
-    },
+  if (!editorView) return
+  if (!KNOWN_COMMANDS.has(action)) {
+    showToast(`未知操作: ${action}`, 'warning')
+    return
   }
-  const fn = map[action]
-  fn ? fn() : showToast(`未知操作: ${action}`, 'warning')
+  runFormatCommand(editorView, action)
+  // Re-sync button state right away (the update listener covers the rest:
+  // word count, dirty dot, cursor pos, live decorations).
+  store.updateActiveFormats(editorView.state)
+  editorView.focus()
 }
 </script>
 

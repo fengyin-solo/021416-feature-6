@@ -14,7 +14,8 @@
           v-for="act in group"
           :key="act.id"
           class="toolbar__btn"
-          :title="act.title"
+          :class="{ 'toolbar__btn--active': store.activeFormats.includes(act.id) }"
+          :title="act.shortcut ? `${act.title} (${act.shortcut})` : act.title"
           @click="emit('action', act.id)"
           v-html="act.icon"
         />
@@ -22,6 +23,12 @@
     </nav>
 
     <div class="toolbar__right">
+      <button
+        class="toolbar__btn"
+        title="新建文稿"
+        @click="emit('action', 'new-document')"
+        v-html="newFileIcon"
+      />
       <span class="toolbar__file">{{ store.fileName }}</span>
     </div>
   </header>
@@ -36,15 +43,17 @@ const emit = defineEmits(['action'])
 const I = (d, size = 16) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 
+const newFileIcon = I('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>')
+
 const actionGroups = [
   [
-    { id: 'bold', title: '粗体', icon: I('<path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>') },
-    { id: 'italic', title: '斜体', icon: I('<line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>') },
-    { id: 'strikethrough', title: '删除线', icon: I('<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" y1="12" x2="20" y2="12"/>') },
+    { id: 'bold', title: '粗体', shortcut: 'Ctrl/Cmd+B', icon: I('<path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>') },
+    { id: 'italic', title: '斜体', shortcut: 'Ctrl/Cmd+I', icon: I('<line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>') },
+    { id: 'strikethrough', title: '删除线', shortcut: 'Ctrl/Cmd+Shift+X', icon: I('<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" y1="12" x2="20" y2="12"/>') },
   ],
   [
-    { id: 'code', title: '行内代码', icon: I('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>') },
-    { id: 'link', title: '链接', icon: I('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>') },
+    { id: 'code', title: '行内代码', shortcut: 'Ctrl/Cmd+E', icon: I('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>') },
+    { id: 'link', title: '链接', shortcut: 'Ctrl/Cmd+K', icon: I('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>') },
     { id: 'image', title: '图片', icon: I('<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>') },
   ],
   [
@@ -135,12 +144,20 @@ const actionGroups = [
     &:active {
       transform: scale(0.93);
     }
+
+    // 光标位于该格式区域时的激活态
+    &--active,
+    &--active:hover {
+      background: $accent;
+      color: #fff;
+    }
   }
 
   &__right {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    gap: $sp-2;
     min-width: 140px;
   }
 

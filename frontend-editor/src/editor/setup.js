@@ -6,6 +6,7 @@ import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
 import { editorBaseTheme } from './theme'
 import { markdownDecorationPlugin } from './decoration-plugin'
+import { runFormatCommand } from './commands'
 
 const defaultContent = `# Welcome to MD Live Editor
 
@@ -53,16 +54,12 @@ Happy writing! ✨
 `
 
 /**
- * Create and mount a CodeMirror 6 editor instance.
- * @param {HTMLElement} parent - The DOM element to mount the editor into
- * @param {Object} [options]
- * @param {string} [options.doc] - Initial document content
- * @param {function} [options.onUpdate] - Callback for editor updates
- * @returns {EditorView}
+ * 创建编辑器状态（独立于 DOM，切换文稿时可整体替换以隔离历史/装饰/选区）。
+ * @param {string} [doc] - 初始文档内容
+ * @param {function} [onUpdate] - updateListener 回调
+ * @returns {EditorState}
  */
-export function createEditor(parent, options = {}) {
-  const { doc, onUpdate } = options
-
+export function createEditorState(doc, onUpdate) {
   const extensions = [
     // Core
     history(),
@@ -72,8 +69,14 @@ export function createEditor(parent, options = {}) {
     bracketMatching(),
     EditorView.lineWrapping,
 
-    // Keymaps
+    // Keymaps（默认 + 撤销重做 + 格式化快捷键，全部走同一命令入口，
+    // 因此按钮、快捷键、撤销混用行为完全一致）
     keymap.of([
+      { key: 'Mod-b', run: view => runFormatCommand(view, 'bold') },
+      { key: 'Mod-i', run: view => runFormatCommand(view, 'italic') },
+      { key: 'Mod-e', run: view => runFormatCommand(view, 'code') },
+      { key: 'Mod-k', run: view => runFormatCommand(view, 'link') },
+      { key: 'Mod-Shift-x', run: view => runFormatCommand(view, 'strikethrough') },
       ...defaultKeymap,
       ...historyKeymap,
       indentWithTab
@@ -96,15 +99,27 @@ export function createEditor(parent, options = {}) {
     EditorView.contentAttributes.of({ spellcheck: 'true' })
   ]
 
-  // Add update listener if provided
   if (onUpdate) {
     extensions.push(EditorView.updateListener.of(onUpdate))
   }
 
-  const state = EditorState.create({
-    doc: doc || defaultContent,
+  return EditorState.create({
+    doc: doc === undefined ? defaultContent : doc,
     extensions
   })
+}
 
-  return new EditorView({ state, parent })
+/**
+ * Create and mount a CodeMirror 6 editor instance.
+ * @param {HTMLElement} parent - The DOM element to mount the editor into
+ * @param {Object} [options]
+ * @param {string} [options.doc] - Initial document content
+ * @param {function} [options.onUpdate] - Callback for editor updates
+ * @returns {EditorView}
+ */
+export function createEditor(parent, options = {}) {
+  return new EditorView({
+    state: createEditorState(options.doc, options.onUpdate),
+    parent
+  })
 }

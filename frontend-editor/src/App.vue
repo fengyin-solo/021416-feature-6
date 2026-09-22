@@ -16,6 +16,7 @@ import { ref, reactive } from 'vue'
 import Toolbar from '@/components/Toolbar.vue'
 import EditorPane from '@/components/EditorPane.vue'
 import StatusBar from '@/components/StatusBar.vue'
+import { runFormatCommand } from '@/editor/commands'
 
 const editorPane = ref(null)
 let editorView = null
@@ -31,45 +32,19 @@ function showToast(msg, type = 'info') {
 
 function onEditorReady(view) { editorView = view }
 
-function insertText(before, after = '') {
-  if (!editorView) return
-  const { from, to } = editorView.state.selection.main
-  const sel = editorView.state.sliceDoc(from, to)
-  const text = `${before}${sel || 'text'}${after}`
-  editorView.dispatch({
-    changes: { from, to, insert: text },
-    selection: { anchor: from + before.length, head: from + before.length + (sel || 'text').length }
-  })
-  editorView.focus()
-}
-
-function insertLine(prefix) {
-  if (!editorView) return
-  const line = editorView.state.doc.lineAt(editorView.state.selection.main.head)
-  editorView.dispatch({ changes: { from: line.from, to: line.from, insert: prefix } })
-  editorView.focus()
-}
-
 function handleToolbarAction(action) {
-  const map = {
-    bold: () => insertText('**', '**'),
-    italic: () => insertText('*', '*'),
-    strikethrough: () => insertText('~~', '~~'),
-    code: () => insertText('`', '`'),
-    link: () => insertText('[', '](url)'),
-    image: () => insertText('![alt](', ')'),
-    blockquote: () => insertLine('> '),
-    'bullet-list': () => insertLine('- '),
-    'ordered-list': () => insertLine('1. '),
-    hr: () => {
-      const pos = editorView.state.selection.main.head
-      const line = editorView.state.doc.lineAt(pos)
-      editorView.dispatch({ changes: { from: line.to, to: line.to, insert: '\n\n---\n\n' } })
-      editorView.focus()
-    },
+  // 应用级命令
+  if (action === 'new-document') {
+    editorPane.value?.loadDocument('', 'untitled.md')
+    showToast('已新建文稿', 'success')
+    return
   }
-  const fn = map[action]
-  fn ? fn() : showToast(`未知操作: ${action}`, 'warning')
+
+  // 格式化命令统一走命令引擎：
+  // 返回 false 表示未知命令，不派发任何事务，原内容保持不变
+  if (!editorView) return
+  const handled = runFormatCommand(editorView, action)
+  if (!handled) showToast(`未知操作: ${action}`, 'warning')
 }
 </script>
 
